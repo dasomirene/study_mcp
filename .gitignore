@@ -1,0 +1,19 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Local/editor files
+.codex
+.DS_Store
+.idea/
+.vscode/
+
+# Accidental duplicate file with a leading space
+ client_gateway.py

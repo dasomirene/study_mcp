@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 날씨와 달</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <div class="top-bar">
+      <p class="eyebrow">LIVE WEATHER</p>
+      <div class="top-actions">
+        <span class="service-lights" aria-label="서비스 연결 상태">
+          <span id="openai-light" class="service-light">OpenAI</span>
+          <span id="socket-light" class="service-light">Socket</span>
+          <span id="weatherapi-light" class="service-light">WeatherAPI</span>
+        </span>
+        <span id="session-label" class="session-label">Session -</span>
+        <button id="clear-chat-button" class="clear-chat-button" type="button">대화 지우기</button>
+      </div>
+    </div>
+    <h1>지역별 날씨와 달</h1>
+    <p class="subtitle">지역과 날짜를 편하게 말하면 AI가 날씨와 달 정보를 자연스럽게 정리해드려요.</p>
+
+    <div class="app-layout">
+      <section class="chat-panel" aria-label="AI 날씨 대화">
+        <div id="chat-messages" class="chat-messages">
+          <div class="chat-entry assistant">
+            <div class="chat-message assistant">궁금한 지역과 날짜를 편하게 물어보세요. 예: 내일 부산 날씨 어때?</div>
+            <div class="chat-time">지금</div>
+          </div>
+        </div>
+        <form id="chat-form" class="chat-form">
+          <input id="chat-input" type="text" placeholder="예: 4월 24일 서울 달 상태 알려줘" autocomplete="off">
+          <button id="chat-button" type="submit">전송</button>
+        </form>
+      </section>
+
+      <section class="status-panel">
+        <section id="result" class="result empty">
+          질문을 보내면 정리된 날씨와 달 정보가 여기에 표시됩니다.
+        </section>
+      </section>
+    </div>
+
+    <section id="logs" class="logs hidden" aria-live="polite">
+      <p class="logs-title">통신 로그</p>
+      <div id="log-list" class="log-list"></div>
+    </section>
+  </main>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
