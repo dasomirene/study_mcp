@@ -1,147 +1,94 @@
 # AI 날씨와 달
 
-OpenAI, WeatherAPI, FastAPI WebSocket, MCP 서버를 사용해서 지역별 날씨와 달 정보를 대화형으로 조회하는 웹 앱입니다.
+OpenAI, WeatherAPI, FastAPI WebSocket, MCP 서버를 사용한 대화형 날씨/달 정보 조회 앱입니다.
 
-브라우저에서는 채팅처럼 질문을 보내고, 서버는 OpenAI로 질문 의도를 분석한 뒤 WeatherAPI 또는 MCP tool을 통해 날씨/천문 정보를 가져옵니다. 답변은 WebSocket으로 스트리밍되며, 오른쪽 패널에는 날씨 또는 달 모양 정보가 카드 형태로 표시됩니다.
+사용자는 브라우저 채팅창에 자연어로 질문합니다. 예를 들어 `내일 서울 날씨 알려줘`, `4월 24일 부산 달 모양 알려줘`처럼 입력하면 OpenAI가 의도와 장소, 날짜를 분석하고 WeatherAPI 데이터를 바탕으로 한국어 답변을 생성합니다.
 
-## 주요 기능
+## Screenshots
 
-- 자연어 채팅으로 날씨와 달 정보 조회
-- 한국어 지역명, 영어 도시명, 날짜 표현 처리
+![AI 날씨와 달 화면 1](public/weather_mcp_1.png)
+
+![AI 날씨와 달 화면 2](public/weather_mcp_2.png)
+
+## Features
+
+- 자연어 기반 날씨/달 정보 조회
 - OpenAI를 이용한 장소 검증, 날짜/의도 분석, 한국어 답변 생성
-- WeatherAPI를 이용한 현재 날씨, 날짜별 날씨, 천문 정보 조회
-- MCP 서버를 통한 `get_weather`, `get_astronomy` tool 제공
-- WebSocket 기반 답변 스트리밍
+- WeatherAPI 기반 현재 날씨, 날짜별 날씨, 천문 정보 조회
+- MCP tool 서버를 통한 `get_weather`, `get_astronomy` 분리
+- WebSocket 기반 스트리밍 답변
 - 세션 UUID 기반 대화 히스토리 유지
-- 대화 지우기
-- Markdown 표, 목록, 줄바꿈 렌더링
-- 통신 로그 카드 표시
+- Markdown 표/목록 렌더링
+- 통신 로그 표시
 
-## 현재 디렉토리 구성
+## Project Structure
 
 ```text
 weather/
 ├── frontend/
-│   ├── index.html          # 프론트엔드 HTML
-│   ├── styles.css          # UI 스타일
-│   └── app.js              # 브라우저 로직, WebSocket, Markdown 렌더링
+│   ├── index.html
+│   ├── styles.css
+│   └── app.js
 ├── backend/
 │   ├── __init__.py
-│   ├── host_app.py         # Host FastAPI 앱, MCP client, 정적 파일 제공
-│   ├── main_weather.py     # 핵심 날씨/천문/OpenAI/WebSocket 로직
-│   └── client_gateway.py   # host_app app 재노출용 진입점
+│   ├── host_app.py
+│   ├── main_weather.py
+│   └── client_gateway.py
 ├── mcp_server/
 │   ├── __init__.py
-│   └── weather_mcp_server.py # MCP tool 서버
-├── my_project.py           # 초기 실습/보조 파일
-├── requirements.txt        # Python 의존성
-├── .env.example            # 환경변수 예시
-└── README.md               # 프로젝트 요약 문서
+│   └── weather_mcp_server.py
+├── public/
+│   ├── weather_mcp_1.png
+│   └── weather_mcp_2.png
+├── requirements.txt
+├── .env.example
+├── .gitignore
+└── README.md
 ```
 
-프론트엔드, 백엔드, MCP 서버를 폴더로 분리했습니다. 실행 명령도 이 구조를 기준으로 작성되어 있습니다.
+## MCP 개념
 
-## 서버 구성
+MCP(Model Context Protocol)는 AI 앱이 외부 기능을 tool 형태로 호출할 수 있게 해주는 연결 규격입니다.
 
-이 프로젝트는 MCP 실습 구조라서 서버를 최대 3개 띄웁니다.
+이 프로젝트에서는 날씨/천문 조회 기능을 MCP 서버로 분리했습니다.
 
 ```text
-브라우저
-  ↓ WebSocket / HTTP
-Host 앱 FastAPI, port 8000
-  ↓ MCP tool 호출
-Weather MCP 서버, port 9000
-  ↓ 외부 API
-WeatherAPI / OpenAI
+Browser
+  ↓ WebSocket
+Host App, FastAPI
+  ↓ MCP tool call
+MCP Server
+  ↓ HTTP API
+WeatherAPI
 ```
 
-### 1. MCP 서버
+각 구성요소의 역할은 다음과 같습니다.
 
-`mcp_server/weather_mcp_server.py`는 MCP tool 서버입니다.
+| 구성요소 | 역할 |
+|---|---|
+| `frontend/` | 채팅 UI, WebSocket 연결, Markdown 렌더링 |
+| `backend/host_app.py` | Host 앱, 정적 파일 제공, WebSocket endpoint, MCP client |
+| `backend/main_weather.py` | OpenAI 호출, WeatherAPI 호출, 의도 분석, 답변 생성 |
+| `mcp_server/weather_mcp_server.py` | MCP tool 서버, `get_weather`, `get_astronomy` 제공 |
+| WeatherAPI | 실제 날씨/천문 데이터 제공 |
+| OpenAI | 자연어 이해와 한국어 답변 생성 |
 
-제공 tool:
-
-- `get_weather(location, date)`
-- `get_astronomy(location, date)`
-
-기본 주소:
-
-```text
-http://127.0.0.1:9000/mcp
-```
-
-### 2. Host 앱
-
-`backend/host_app.py`는 브라우저와 통신하는 FastAPI 앱입니다.
-
-역할:
-
-- `/ws` WebSocket 채팅 처리
-- `/status` 연결 상태 확인
-- `/weather`, `/astronomy` HTTP API 제공
-- MCP client로 MCP 서버의 tool 호출
-- `index.html`, `styles.css`, `app.js` 정적 파일 제공
-
-기본 주소:
-
-```text
-http://127.0.0.1:8000
-```
-
-### 3. 정적 HTML 서버
-
-정적 서버는 선택 사항입니다. `index.html`을 `5500`에서 띄우고 싶을 때 사용합니다.
-
-```text
-http://127.0.0.1:5500/index.html
-```
-
-현재 `app.js`는 `5500`에서 열렸을 때 Host 앱을 `http://127.0.0.1:8000`으로 바라보도록 되어 있습니다.
-
-## 환경변수
-
-`.env.example`을 복사해서 `.env`를 만들고 값을 채웁니다.
-
-```bash
-cp .env.example .env
-```
-
-필수 값:
-
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-4o-mini
-WEATHER_API_KEY=your_weatherapi_key_here
-```
-
-선택 값:
-
-```env
-MCP_URL=http://127.0.0.1:9000/mcp
-MCP_HOST=0.0.0.0
-MCP_PORT=9000
-MCP_TRANSPORT=streamable-http
-```
-
-`.env`를 수정했다면 Host 앱을 재시작해야 반영됩니다.
+MCP 서버를 분리하면 나중에 날씨 외에도 일정, 파일 검색, DB 조회 같은 tool을 같은 방식으로 붙이기 쉽습니다. 대신 실행해야 할 프로세스가 늘어나므로 작은 앱에서는 구조가 조금 복잡해질 수 있습니다.
 
 ## Quickstart
 
-### 1. 필요한 패키지
+### 1. 환경 준비
 
-이 프로젝트는 Python 3.11 이상을 권장합니다.
+Python 3.11 이상을 권장합니다.
 
-Python 패키지는 `requirements.txt`로 관리합니다.
-
-```text
-fastapi
-uvicorn[standard]
-requests
-mcp
-langchain-mcp-adapters
+```bash
+cd ~/weather
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-패키지 역할:
+설치되는 주요 패키지:
 
 | 패키지 | 용도 |
 |---|---|
@@ -151,25 +98,13 @@ langchain-mcp-adapters
 | `mcp` | MCP 서버 구현 |
 | `langchain-mcp-adapters` | Host 앱에서 MCP tool 호출 |
 
-### 2. 가상환경 만들기
+### 2. 환경변수 설정
 
 ```bash
-cd ~/weather
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+cp .env.example .env
 ```
 
-이미 `.venv`가 있다면 활성화만 하면 됩니다.
-
-```bash
-cd ~/weather
-source .venv/bin/activate
-```
-
-### 3. 환경변수 설정 확인
-
-`.env` 파일에 아래 값이 들어 있어야 합니다.
+`.env`에 아래 값을 넣습니다.
 
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
@@ -177,9 +112,20 @@ OPENAI_MODEL=gpt-4o-mini
 WEATHER_API_KEY=your_weatherapi_key_here
 ```
 
-### 4. 실행 방법
+선택 설정:
 
-### 터미널 1: MCP 서버
+```env
+MCP_URL=http://127.0.0.1:9000/mcp
+MCP_HOST=0.0.0.0
+MCP_PORT=9000
+MCP_TRANSPORT=streamable-http
+```
+
+`.env`를 수정했다면 Host 앱을 재시작해야 합니다.
+
+### 3. 실행
+
+터미널 1: MCP 서버
 
 ```bash
 cd ~/weather
@@ -187,7 +133,7 @@ source .venv/bin/activate
 python -m mcp_server.weather_mcp_server
 ```
 
-### 터미널 2: Host 앱
+터미널 2: Host 앱
 
 ```bash
 cd ~/weather
@@ -195,7 +141,7 @@ source .venv/bin/activate
 uvicorn backend.host_app:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 터미널 3: 정적 HTML 서버
+터미널 3: 정적 HTML 서버
 
 ```bash
 cd ~/weather/frontend
@@ -208,25 +154,48 @@ python3 -m http.server 5500 --bind 0.0.0.0
 http://127.0.0.1:5500/index.html
 ```
 
-Host 앱만으로도 정적 파일을 제공하므로 아래 주소도 사용할 수 있습니다.
+Host 앱만으로도 접속할 수 있습니다.
 
 ```text
 http://127.0.0.1:8000
 ```
 
-## 주요 엔드포인트
+## 실행 흐름
+
+```text
+1. 사용자가 frontend에서 질문 입력
+2. frontend/app.js가 WebSocket /ws로 메시지 전송
+3. backend/main_weather.py가 OpenAI로 의도, 장소, 날짜 분석
+4. Host 앱이 MCP 서버의 get_weather 또는 get_astronomy 호출
+5. MCP 서버가 WeatherAPI를 호출
+6. backend/main_weather.py가 API 결과를 정리
+7. OpenAI가 한국어 답변 생성
+8. WebSocket으로 답변 chunk 스트리밍
+9. frontend가 채팅 버블, 오른쪽 정보 패널, 통신 로그 렌더링
+```
+
+의도별 처리:
+
+```text
+날씨 질문 → get_weather
+달/해 질문 → get_astronomy
+가벼운 대화 → WeatherAPI 호출 없이 OpenAI 답변
+장소가 애매한 질문 → 사용자에게 장소 재설정 요청
+```
+
+## API
 
 | Method | Path | 설명 |
 |---|---|---|
-| `GET` | `/` | `index.html` 반환 |
+| `GET` | `/` | 프론트엔드 HTML 반환 |
 | `GET` | `/status` | OpenAI, WeatherAPI 연결 상태 확인 |
 | `GET` | `/weather?location=Seoul&date=2026-04-24` | 날씨 조회 |
 | `GET` | `/astronomy?location=Seoul&date=2026-04-24` | 달/해 정보 조회 |
 | `WS` | `/ws` | 채팅 WebSocket |
 
-## WebSocket 메시지 흐름
+## WebSocket 메시지
 
-브라우저에서 질문을 보내면:
+브라우저에서 보내는 메시지:
 
 ```json
 {
@@ -235,97 +204,31 @@ http://127.0.0.1:8000
 }
 ```
 
-서버는 다음 이벤트를 순서대로 보낼 수 있습니다.
+서버 이벤트:
 
 | type | 설명 |
 |---|---|
 | `session` | WebSocket 연결 시 세션 UUID 전달 |
 | `chat_start` | 의도 분석과 API 조회 결과 전달 |
-| `chat_delta` | OpenAI 답변 chunk 스트리밍 |
-| `chat_done` | 최종 답변과 통신 로그 전달 |
+| `chat_delta` | OpenAI 답변 chunk |
+| `chat_done` | 최종 답변과 통신 로그 |
 | `clear_history` | 대화 기록 초기화 |
 
-## 답변 생성 규칙
+## 답변 정책
 
-`backend/main_weather.py`에서 OpenAI에게 다음 규칙을 지시합니다.
+- 항상 한국어로 답변합니다.
+- 사용자의 현재 질문을 히스토리보다 우선합니다.
+- 날씨/천문 정보는 API 결과만 사용합니다.
+- 장소가 실제 조회 가능한 지역인지 먼저 검증합니다.
+- 날씨 정보는 표 형태를 우선 사용합니다.
+- 달 정보는 뜸/짐 상태 판단보다 달 위상과 모양 설명 중심으로 답변합니다.
+- 이미지 URL, API 필드명, 내부 로그는 답변에 노출하지 않습니다.
 
-- 항상 한국어로 답변
-- 사용자의 현재 질문을 히스토리보다 우선
-- 날씨/천문 데이터는 API 결과만 사용
-- 지역이 실제 조회 가능한 장소인지 1차 검증
-- 날씨 정보는 표 형태를 우선 사용
-- 달 정보는 “떠 있음/해가 졌음” 같은 상태 판단을 피하고 달 위상과 모양 설명 중심으로 답변
-- 이미지 URL, API 필드명, 내부 로그 언급 금지
-
-## 프론트엔드 구성
-
-### `frontend/index.html`
-
-앱의 화면 구조입니다.
-
-- 상단 서비스 상태
-- 채팅 패널
-- 오른쪽 날씨/달 정보 패널
-- 통신 로그 영역
-
-### `frontend/styles.css`
-
-전체 UI 스타일입니다.
-
-- 화이트/라이트 그레이 기반 배경
-- 보라색 포인트 컬러
-- 채팅 버블
-- 날씨/달 카드
-- skeleton 로딩
-- 통신 로그 카드
-
-### `frontend/app.js`
-
-브라우저 동작을 담당합니다.
-
-- WebSocket 연결
-- 채팅 메시지 전송
-- 스트리밍 답변 렌더링
-- Markdown 표/목록/줄바꿈 렌더링
-- 오른쪽 날씨/달 패널 업데이트
-- 통신 로그 렌더링
-
-## 백엔드 구성
-
-### `backend/main_weather.py`
-
-핵심 로직입니다.
-
-- WeatherAPI 호출
-- OpenAI Responses API 호출
-- 지역명 검증과 변환
-- 날짜 해석
-- 날씨/천문 결과 가공
-- WebSocket 채팅 처리
-- 세션 히스토리 관리
-
-### `backend/host_app.py`
-
-Host 앱입니다.
-
-- 브라우저 요청 수신
-- 정적 파일 제공
-- MCP client 관리
-- MCP tool 호출
-- `backend.main_weather.websocket_endpoint` 연결
-
-### `mcp_server/weather_mcp_server.py`
-
-MCP 서버입니다.
-
-- `get_weather`
-- `get_astronomy`
-
-## 자주 나는 문제
+## Troubleshooting
 
 ### OpenAI 키를 바꿨는데 이전 키로 요청되는 경우
 
-`.env` 변경 후 Host 앱을 재시작해야 합니다.
+Host 앱을 재시작합니다.
 
 ```bash
 Ctrl+C
@@ -334,7 +237,7 @@ uvicorn backend.host_app:app --reload --host 0.0.0.0 --port 8000
 
 ### `No module named 'mcp'`
 
-가상환경을 활성화하고 의존성을 설치합니다.
+가상환경을 활성화하고 패키지를 설치합니다.
 
 ```bash
 source .venv/bin/activate
@@ -343,7 +246,7 @@ pip install -r requirements.txt
 
 ### WebSocket 경고가 나는 경우
 
-`uvicorn[standard]`가 설치되어 있어야 합니다.
+`uvicorn[standard]`가 설치되어 있는지 확인합니다.
 
 ```bash
 pip install "uvicorn[standard]"
@@ -351,17 +254,9 @@ pip install "uvicorn[standard]"
 
 ### `styles.css`, `app.js`가 404인 경우
 
-`backend/host_app.py`에는 `/styles.css`, `/app.js` 라우트가 있습니다. Host 앱 주소로 열거나, 정적 서버를 `frontend/` 디렉토리에서 실행해야 합니다.
+정적 서버를 `frontend/` 디렉토리에서 실행합니다.
 
 ```bash
 cd ~/weather/frontend
 python3 -m http.server 5500 --bind 0.0.0.0
 ```
-
-## 앞으로 정리하면 좋은 것
-
-- 오래된 실습 파일 정리
-- API 호출부와 OpenAI 호출부 모듈 분리
-- 테스트 추가
-- `.gitignore` 추가
-- README의 실행 방식과 실제 구조를 계속 동기화
